@@ -8,6 +8,22 @@ pipeline {
     }
 
     stages {
+
+        stage('fix-permissions') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
+                    args '-u root'
+                }
+            }
+            steps {
+                sh '''
+                    chown -R 1000:1000 node_modules 2>/dev/null || true
+                '''
+            }
+        }
+
         stage('build') {
             agent {
                 docker {
@@ -17,11 +33,16 @@ pipeline {
             }
             steps {
                 sh '''
+                    echo "Starting build..."
+
                     ls -ls
                     node --version
                     npm --version
+
                     npm ci
                     npm run build
+
+                    echo "Build completed!"
                     ls -ls
                 '''
             }
@@ -36,8 +57,12 @@ pipeline {
             }
             steps {
                 sh '''
+                    echo "Running tests..."
+
                     test -f build/index.html
-                    npm test
+                    npm test -- --watchAll=false
+
+                    echo "Tests completed!"
                 '''
             }
         }
@@ -45,14 +70,14 @@ pipeline {
         stage('deploy') {
             agent {
                 docker {
-                    image 'node:18-alpine'
+                    image 'node:18'
                     reuseNode true
-                    args '-u root'
                 }
             }
             steps {
                 sh '''
-                    apk add --no-cache bash
+                    echo "Installing Netlify CLI..."
+
                     npm install netlify-cli
 
                     node_modules/.bin/netlify --version
@@ -64,10 +89,10 @@ pipeline {
                         --dir=build \
                         --site=$NETLIFY_SITE_ID \
                         --auth=$NETLIFY_AUTH_TOKEN
-                    node_modules/.bin/netlify deploy --dir=build --prod
+
+                    echo "Deployment completed!"
                 '''
             }
         }
     }
 }
-
