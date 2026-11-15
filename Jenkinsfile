@@ -64,6 +64,7 @@ pipeline {
                         --dir=build \
                         --site=$NETLIFY_SITE_ID \
                         --auth=$NETLIFY_AUTH_TOKEN
+                    node_modules/.bin/netlify deploy --dir=build --prod
                 '''
             }
         }
